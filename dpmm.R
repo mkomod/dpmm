@@ -1,15 +1,11 @@
-# dirichlet process mixute model
-library(Rcpp)
-Rcpp::sourceCpp("./dpmm.cpp")
+# Dirichlet Process Mixture Models
+# See: Algorithm 7, Neal (2000)
 
+Rcpp::sourceCpp("./dpmm.cpp")
 set.seed(1)
 
-# test cpp funcs
-rdirchlet(10, 1:5); apply(rdirchlet(10, 1:5), 1, sum)
-rdiscrete(5, rep(1,5)/5); table(rdiscrete(1e4, rep(1,5)/5)) / 1e4
 
-
-# test data
+# Test Data ---
 n <- 150
 mus <- as.matrix(seq(-3, 3, by=3))
 c.t <- rdiscrete(n, rep(1/3, 3)) + 1   # +1 as cpp index is 0-based and R is 1-based
@@ -18,37 +14,39 @@ y <- rnorm(n, mus[c.t], 0.3)
 plot(density(y))                       # check density is mixture of normals
 
 
-# Gibbs sampler for DPMM
-# See: Algorithm 7, Neal (2000)
-
-# init vars
-g <- matrix(1:2, n)
-phi <- matrix(rnorm(2), length(unique(g)))
+# Gibbs sampler w/ MH updates for phi ---
+g <- matrix(1, n)
+phi <- matrix(rnorm(1), length(unique(g)))
 g0 <- function() rnorm(1, 0, 3)
-a <- 0.3
+a.0 <- 1e-30
+kern.sd <- 0.1
 
-PHI <- list()
-G <- matrix(0, nrow=n, ncol=1e4)
+N <- 5e3
+PHI <- matrix(0, nrow=500, ncol=N)
+G <- matrix(0, nrow=n, ncol=N)
 
-for (iter in 1:5e3) {
-
+for (iter in 1:N) {
+    
+    # update c (create new groups)
     for (i in 1:n) {
 	g.old <- g[i]
 	if (any(g[-i] == g[i])) {
 	    g.new <- max(g) + 1               # create a new group
 	    phi.new <- g0()
-	    a <- min(1, a/(n-1)*dnorm(y[i], phi.new, 0.3)/dnorm(y[i], phi[g.old], 0.3))
+	    a <- min(1, a.0/(n-1)*dnorm(y[i], phi.new, 0.3)/dnorm(y[i], phi[g.old], 0.3))
 	    if (a > runif(1)) {
 		g[i] <- g.new
 		phi <- as.matrix(rbind(phi, phi.new))
+		colnames(phi) <- NULL
 	    }
 	} else {
 	    g.new <- sample(unique(g[-i]), 1, prob=table(g[-i]))
-	    a <- min(1, (n-1)/a*dnorm(y[i], phi[g.new], 0.3)/dnorm(y[i], phi[g.old], 0.3))
+	    a <- min(1, (n-1)/a.0*dnorm(y[i], phi[g.new],0.3)/dnorm(y[i], phi[g.old], 0.3))
 	    g[i] <- ifelse(a > runif(1), g.new, g.old)
 	}
     }
-
+    
+    # update c
     for (i in 1:n) {
 	g.old <- g[i]
 	if (any(g[-i] == g[i])) {
@@ -56,23 +54,51 @@ for (iter in 1:5e3) {
 			   prob=table(g[-i])*dnorm(y[i], phi[unique(g[-i])], 0.3))
 	}
     }
-
-    for (i in seq_along(unique(g))) {
-	phi.old <- phi[i]
-	phi.new <- rnorm(1, phi.old, 0.01)
+   
+    # update phi
+    for (i in 1:n) {
+	phi.old <- phi[g[i]]
+	phi.new <- rnorm(1, phi.old, kern.sd)
 	
-	p0 <- sum(dnorm(y, phi.new, 0.3, log=TRUE)) + dnorm(phi.new, log=TRUE) +
-	    dnorm(phi.old, phi.new, 0.01, log=TRUE) 
-	p1 <- sum(dnorm(y, phi.old, 0.3, log=TRUE)) + dnorm(phi.old, log=TRUE) +
-	    dnorm(phi.new, phi.old, 0.01, log=TRUE)
+	p0 <- dnorm(y[i], phi.new, 0.3, log=TRUE) + dnorm(phi.new, 0, 5, log=TRUE) + 
+	    dnorm(phi.old, phi.new, kern.sd, log=TRUE) 
+	p1 <- dnorm(y[i], phi.old, 0.3, log=TRUE) + dnorm(phi.old, 0, 5, log=TRUE) + 
+	    dnorm(phi.new, phi.old, kern.sd, log=TRUE)
 
 	a <- min(1, exp(p0 - p1))
 
-	phi[i] <- ifelse(a > runif(1), phi.new, phi.old)
+	phi[g[i]] <- ifelse(a > runif(1), phi.new, phi.old)
     }
     
-    PHI[[iter]] <- phi
+    # save
+    PHI[ , iter] <- c(phi, rep(0, 500-length(phi)))
     G[ , iter] <- g
 }
 
+
+# results take 1e3 - 1e4 (burn in of 1e3)
+par(mfrow=c(3,3), las=1, mar=c(0,0,0,0))
+for(i in 1:3) {
+    for (j in 1:3) {
+	if (i == j) {
+	    plot(density(PHI[i , 1.5e3:N]), xlab="", ylab="", main="", yaxt="n")
+	} else if (i < j) {
+	    if (j == i + 1) {
+		plot(PHI[j, 1.5e3:N], PHI[i, 1.5e3:N], xlab="", ylab="", 
+		     col=rgb(0, 0, 1, 0.05), pch=2,
+		     xaxt="n", las=1)
+	    } else if (j == i + 2) {
+		plot(PHI[j, 1.5e3:N], PHI[i, 1.5e3:N], xlab="", ylab="", 
+		     col=rgb(0, 0, 1, 0.05), pch=2,
+		     yaxt="n", las=1)
+	    } else {
+		plot(PHI[j, 1.5e3:N], PHI[i, 1.5e3:N], xlab="", ylab="", 
+		     col=rgb(0, 0, 1, 0.05), pch=2,
+		     yaxt="n", xaxt="n")
+	    }
+	} else {
+	    plot.new()
+	}
+    }
+}
 
