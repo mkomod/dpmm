@@ -13,8 +13,8 @@ y <- rnorm(n, mus[c.t], 0.3)
 
 plot(density(y))                       # check density is mixture of normals
 
-
 # Gibbs sampler w/ MH updates for phi ---
+set.seed(1)
 g <- matrix(1, n)
 phi <- matrix(rnorm(1), length(unique(g)))
 g0 <- function() rnorm(1, 0, 3)
@@ -40,7 +40,8 @@ for (iter in 1:N) {
 		colnames(phi) <- NULL
 	    }
 	} else {
-	    g.new <- sample(unique(g[-i]), 1, prob=table(g[-i]))
+	    tab.g <- table(g[-i])
+	    g.new <- sample(as.numeric(names(tab.g)), 1, prob=as.numeric(tab.g))
 	    a <- min(1, (n-1)/a.0*dnorm(y[i], phi[g.new],0.3)/dnorm(y[i], phi[g.old], 0.3))
 	    g[i] <- ifelse(a > runif(1), g.new, g.old)
 	}
@@ -50,8 +51,9 @@ for (iter in 1:N) {
     for (i in 1:n) {
 	g.old <- g[i]
 	if (any(g[-i] == g[i])) {
+	    tab.g <- table(g[-i])
 	    g[i] <- sample(unique(g), 1, 
-			   prob=table(g[-i])*dnorm(y[i], phi[unique(g[-i])], 0.3))
+		prob=as.numeric(tab.g)*dnorm(y[i], phi[as.numeric(names(tab.g))], 0.3))
 	}
     }
    
@@ -75,24 +77,26 @@ for (iter in 1:N) {
     G[ , iter] <- g
 }
 
-
 # results take 1e3 - 1e4 (burn in of 1e3)
+grps <- as.numeric(names(table(g)))
 par(mfrow=c(3,3), las=1, mar=c(0,0,0,0))
-for(i in 1:3) {
-    for (j in 1:3) {
+for(i in seq_along(grps)) {
+    gi <- grps[i]
+    for (j in seq_along(grps)) {
+	gj <- grps[j]
 	if (i == j) {
-	    plot(density(PHI[i , 1.5e3:N]), xlab="", ylab="", main="", yaxt="n")
+	    plot(density(PHI[gi , 1.5e3:N]), xlab="", ylab="", main="", yaxt="n")
 	} else if (i < j) {
 	    if (j == i + 1) {
-		plot(PHI[j, 1.5e3:N], PHI[i, 1.5e3:N], xlab="", ylab="", 
+		plot(PHI[gj, 1.5e3:N], PHI[gi, 1.5e3:N], xlab="", ylab="", 
 		     col=rgb(0, 0, 1, 0.05), pch=2,
 		     xaxt="n", las=1)
 	    } else if (j == i + 2) {
-		plot(PHI[j, 1.5e3:N], PHI[i, 1.5e3:N], xlab="", ylab="", 
+		plot(PHI[gj, 1.5e3:N], PHI[gi, 1.5e3:N], xlab="", ylab="", 
 		     col=rgb(0, 0, 1, 0.05), pch=2,
 		     yaxt="n", las=1)
 	    } else {
-		plot(PHI[j, 1.5e3:N], PHI[i, 1.5e3:N], xlab="", ylab="", 
+		plot(PHI[gj, 1.5e3:N], PHI[gi, 1.5e3:N], xlab="", ylab="", 
 		     col=rgb(0, 0, 1, 0.05), pch=2,
 		     yaxt="n", xaxt="n")
 	    }
