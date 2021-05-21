@@ -22,6 +22,7 @@ a.0 <- 1e-30
 kern.sd <- 0.1
 
 N <- 5e3
+G.max <- 1
 PHI <- matrix(0, nrow=500, ncol=N)
 G <- matrix(0, nrow=n, ncol=N)
 
@@ -31,13 +32,14 @@ for (iter in 1:N) {
     for (i in 1:n) {
 	g.old <- g[i]
 	if (any(g[-i] == g[i])) {
-	    g.new <- max(g) + 1               # create a new group
+	    g.new <- G.max + 1               # create a new group
 	    phi.new <- g0()
 	    a <- min(1, a.0/(n-1)*dnorm(y[i], phi.new, 0.3)/dnorm(y[i], phi[g.old], 0.3))
 	    if (a > runif(1)) {
 		g[i] <- g.new
+		G.max <- G.max + 1                  # update G.max
 		phi <- as.matrix(rbind(phi, phi.new))
-		colnames(phi) <- NULL
+		rownames(phi) <- NULL
 	    }
 	} else {
 	    tab.g <- table(g[-i])
@@ -49,11 +51,11 @@ for (iter in 1:N) {
     
     # update c
     for (i in 1:n) {
-	g.old <- g[i]
 	if (any(g[-i] == g[i])) {
 	    tab.g <- table(g[-i])
-	    g[i] <- sample(unique(g), 1, 
-		prob=as.numeric(tab.g)*dnorm(y[i], phi[as.numeric(names(tab.g))], 0.3))
+	    g.vals <- as.numeric(names(tab.g))
+	    g[i] <- sample(g.vals, 1, 
+		prob=as.numeric(tab.g)*dnorm(y[i], phi[g.vals], 0.3))
 	}
     }
    
