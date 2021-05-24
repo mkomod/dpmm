@@ -37,6 +37,3 @@ arma::mat rdiscrete(int n, arma::vec p, bool as_indicator=false)
     }
     return res;
 }
-
-
-
