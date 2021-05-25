@@ -10,7 +10,6 @@ x <- seq(0, 4, length.out=n)
 eta.true <- c(2, 10)
 y <- eta.true[g] + x*b + rnorm(n)
 
-plot(x, y)
 
 likelihood <- function(y.i, x, eta, beta, sigma) {
     dnorm(y.i, eta + beta * x, sigma)
@@ -22,7 +21,7 @@ log_likelihood <- function(y, x, eta, beta, sigma) {
 
 
 # sampler
-N <- 2e3                               # MCMC number of iters
+N <- 5e3                               # MCMC number of iters
 max.groups <- n
 G.max <- 1
 a.0 <- 1e-20
@@ -148,8 +147,19 @@ for (iter in 1:N)
 }
 
 
-plot(ETA[1 , ])
-plot(ETA[2 , ])
-# plot(BETA[1, ])
+mean(ETA[1, ])
+mean(ETA[2, ])
 # plot(SIGMA[1, ])
+
+f1 <- MASS::kde2d(ETA[1, 1e3:5e3], ETA[2, 1e3:5e3], n=500)
+pdf("eta_post.pdf", width=6, height=5)
+image(f1, col=hcl.colors(12), xlab=expression(eta[1]), ylab=expression(eta[2]),
+las=1, useRaster=TRUE)
+dev.off()
+
+
+cls <- c("darkorchid1", "orange")
+pdf(file="plr.pdf", width=6, height=5)
+plot(x, y, pch=20, col=cls[g], las=1)
+dev.off()
 
