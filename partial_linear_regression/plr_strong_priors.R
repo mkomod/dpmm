@@ -1,5 +1,5 @@
 # Dirichlet Process mixutre of regression models
-Rcpp::sourceCpp("./dpmr.cpp")
+Rcpp::sourceCpp("./plr.cpp")
 
 # test data
 set.seed(1)
@@ -33,19 +33,19 @@ update_eta <- function(eta, y, x, g, beta, sigma, eta.kern.sd)
 
 # sampler
 N <- 5e3                               # MCMC iters
-max.groups <- 20                       # set an upper limit on the number of groups
+max.groups <- 10                       # set an upper limit on the number of groups
 G.max <- 1                             # count for groups
-a.0 <- 1e-20                           # concentration rate
+a.0 <- 1e-30                           # concentration rate
 H0 <- function() rnorm(1, 0, 5)        # base measure for DP
 eta.kern.sd <- 0.3                     # kernel sd for eta
 
 # init vars
 g <- matrix(rep(1, n), ncol=1)         # init to same group
-eta <- matrix(c(rnorm(1), rep(0, 24)), ncol=1, nrow=max.groups)
+eta <- matrix(c(rnorm(1), rep(0,max.groups-1)), ncol=1, nrow=max.groups)
 beta <- -2                             # equiv to dirac mass on beta
 sigma <- 1                             # equiv to dirac mass on sigma
 
-ETA <- matrix(0, ncol=N, nrow=n)
+ETA <- matrix(0, ncol=N, nrow=max.groups)
 G <- matrix(0, ncol=N, nrow=n)
 
 # Gibbs w/ MH
@@ -67,7 +67,7 @@ mean(ETA[2, ])
 
 f1 <- MASS::kde2d(ETA[1, 1e3:5e3], ETA[2, 1e3:5e3], n=500)
 pdf("eta_post.pdf", width=6, height=5)
-image(f1, col=hcl.colors(12), xlab=expression(eta[1]), ylab=expression(eta[2]),
+image(f1, col=hcl.colors(12, "purples", rev=T), xlab=expression(eta[1]), ylab=expression(eta[2]),
 las=1, useRaster=TRUE)
 dev.off()
 
