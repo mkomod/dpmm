@@ -17,7 +17,6 @@ arma::vec dp_plr_lik(double y, double x, arma::vec eta, double beta,
     });
 }
 
-
 // [[Rcpp::export]]
 double dp_plr_log_lik(double y, double x, double eta, double beta, 
 	double sigma)
@@ -46,7 +45,6 @@ bool is_singleton(const arma::uvec &a, uword j)
     return true;
 }
 
-// [[Rcpp::export]]
 int num_groups(const arma::vec eta) 
 {
     int n = eta.n_elem;
@@ -54,32 +52,6 @@ int num_groups(const arma::vec eta)
 	if (eta(i) == 0.0) return i;
     }
     return n;
-}
-
-arma::mat rdiscrete(int n, arma::vec p, bool as_indicator=false)
-{
-
-    if (sum(p) != 1.0)
-	Rcpp::stop("probabilities must sum to 1");
-
-    int k = p.n_elem;
-    arma::vec p_cs = arma::cumsum(p);
-    arma::mat res;
-
-    if (as_indicator) {
-	res = arma::mat(n, k, arma::fill::zeros);
-	for (int i = 0; i < n; ++i) {
-	    int j = arma::find(p_cs > R::runif(0, 1), 1).eval()(0);
-	    res(i, j) = 1;
-	}
-    } else {
-	res = arma::mat(n, 1, arma::fill::zeros);
-	for (int i = 0; i < n; ++i) {
-	    int j = arma::find(p_cs > R::runif(0, 1), 1).eval()(0);
-	    res(i) = j;
-	}
-    }
-    return res;
 }
 
 // [[Rcpp::export]]
@@ -106,7 +78,7 @@ arma::mat tabulate(const arma::uvec &g, uword j)
 
 uword sample(arma::vec p) 
 {
-    p /= sum(p);
+    p /= sum(p);	// normalise
     return find(cumsum(p) > R::runif(0, 1)).eval()(0);
 }
 
@@ -116,7 +88,7 @@ Rcpp::List update_g(arma::uvec g, arma::vec eta, const arma::vec &y,
 	const arma::vec &x, double beta, double sigma, double a0, 
 	Rcpp::Function H0)
 {
-    g -= 1; // 0 index g
+    g -= 1; // 0-index g so g is compatible with C++ indexing
     uword n = g.n_elem;
     int max_groups = eta.n_elem;
     int cur_group = num_groups(eta);
@@ -164,7 +136,7 @@ Rcpp::List update_g(arma::uvec g, arma::vec eta, const arma::vec &y,
 	}
     }
     
-    g += 1; // 1 index g, so that g is compatible with R indexing
+    g += 1; // 1-index g, so that g is compatible with R indexing
 
     return Rcpp::List::create(
 	Rcpp::Named("g") = g,
