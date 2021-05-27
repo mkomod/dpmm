@@ -1,6 +1,16 @@
-# Dirichlet Process Mixture Model
+# Dirichlet Process Models
 
-Implementation of an MCMC sampler for Dirichlet process mixture models (DPMMs). 
+Implementation of an MCMC samplers for non-parametric and semi-parametric dirichelt process models
+
+## Details
+
+We examine 
+
+ - Dirichlet Process mixture models
+ - Partial Linear Regression
+
+See the respective folders for MCMC sampler implementations
+
 
 ## Installation
 
